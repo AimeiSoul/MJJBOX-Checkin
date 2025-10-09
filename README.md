@@ -31,7 +31,7 @@
 
 ## 安装与运行
 
-**如不想自己再安装，可使用[Aimei_Notify](https://t.me/AimeiNotify_bot)**
+> **如不想自己再安装，可使用[Aimei_Notify](https://t.me/AimeiNotify_bot)**
 
 1. 安装依赖：
 
@@ -43,19 +43,21 @@
 
    ```bash
    git clone https://github.com/AimeiSoul/MJJBOX-Checkin.git
+   cd MJJBOX-Checkin
    ```
 
 4. 配置 Bot Token：
-   在代码中修改 `BOT_TOKEN` 为你的 Telegram Bot Token：
+   在`checkin.py`代码中修改 `BOT_TOKEN` 为你的 Telegram Bot Token：
 
    ```python
-   BOT_TOKEN = "你的BotToken"
+   BOT_TOKEN = "your bot token"
    ```
 
 5. 运行 Bot：
 
    ```bash
-   python checkin.py
+   python3 checkin.py            #测试运行
+   nohup python3 checkin.py &    #持久化运行
    ```
 
 ---
