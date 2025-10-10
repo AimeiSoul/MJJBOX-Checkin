@@ -8,7 +8,7 @@ from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 # ---------------------- 配置 ----------------------
-BOT_TOKEN = "your bot token"
+BOT_TOKEN = "your_bot_token"
 BASE_URL = "https://mjjbox.com"
 DATA_FILE = "users.json"
 
@@ -78,19 +78,18 @@ def checkin(scraper_csrf):
     scraper, csrf = scraper_csrf
     headers = {"X-CSRF-Token": csrf, "X-Requested-With": "XMLHttpRequest"}
 
+    # Step 1: 先检查是否已签到
     r = scraper.get(f"{BASE_URL}/checkin", headers=headers)
     try:
         data = r.json()
     except Exception:
         return None, f"❌ 获取签到状态失败: {r.text[:200]}"
 
-    today_checked_in = data.get("today_checked_in")
-
-    if today_checked_in:
+    if data.get("today_checked_in") is True:
         consecutive_days = data.get("consecutive_days", "-")
         current_points = data.get("current_points", "-")
         today_points = "-"
-        if "checkin_history" in data and data["checkin_history"]:
+        if data.get("checkin_history"):
             today_points = data["checkin_history"][0].get("points_earned", "-")
 
         msg = (
@@ -101,24 +100,26 @@ def checkin(scraper_csrf):
         )
         return data, msg
 
+    # Step 2: 未签到则尝试签到
     r = scraper.post(f"{BASE_URL}/checkin", headers=headers)
     try:
         data = r.json()
     except Exception:
         return None, f"❌ 签到请求失败: {r.text[:200]}"
 
-    if "today_checked_in" in data and data["today_checked_in"]:
+    # Step 3: 判断签到结果
+    if data.get("today_checked_in") is True:
         status = "🎉 签到成功"
     elif "errors" in data:
-        err = str(data["errors"])
-        return data, f"❌ 签到失败: {err}"
+        return data, f"❌ 签到失败: {data['errors']}"
     else:
-        status = "❌ 未知签到响应"
+        # 输出原始响应，方便调试
+        return data, f"⚠️ 未知签到响应: {data}"
 
     consecutive_days = data.get("consecutive_days", "-")
     current_points = data.get("current_points", "-")
     today_points = "-"
-    if "checkin_history" in data and data["checkin_history"]:
+    if data.get("checkin_history"):
         today_points = data["checkin_history"][0].get("points_earned", "-")
 
     msg = (
