@@ -11,6 +11,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 BOT_TOKEN = "your_bot_token"
 BASE_URL = "https://mjjbox.com"
 DATA_FILE = "users.json"
+ADMIN_IDS = "123456789"   # 管理员ID
 
 # 保存用户信息 {chat_id: {"username": str, "password": str, "time": "HH:MM"}}
 users = {}
@@ -113,7 +114,6 @@ def checkin(scraper_csrf):
     elif "errors" in data:
         return data, f"❌ 签到失败: {data['errors']}"
     else:
-        # 输出原始响应，方便调试
         return data, f"⚠️ 未知签到响应: {data}"
 
     consecutive_days = data.get("consecutive_days", "-")
@@ -166,17 +166,44 @@ async def deluser(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("⚠️ 没有已保存的用户")
 
 async def listuser(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not users:
-        await update.message.reply_text("⚠️ 当前没有保存的用户")
+    chat_id = update.effective_chat.id
+
+    if chat_id not in users:
+        await update.message.reply_text("⚠️ 你还没有保存账号。请先使用 /setuser 进行账号保存。")
         return
 
-    msg = "*当前自动签到用户:*"
-    for chat_id, info in users.items():
-        username = info.get("username", "-")
-        time_str = info.get("time") if info.get("time") else "未设置"
-        msg += f"\n**用户名**：{username}\n**签到时间**：{time_str}\n"
+    info = users[chat_id]
+    username = info.get("username", "-")
+    time_str = info.get("time") if info.get("time") else "未设置"
+
+    msg = (
+        f"*你的自动签到信息:*\n"
+        f"**用户名**：{username}\n"
+        f"**签到时间**：{time_str}\n"
+    )
 
     await update.message.reply_text(msg, parse_mode="Markdown")
+
+async def listall(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
+
+    # ✅ 权限检查
+    if chat_id not in ADMIN_IDS:
+        await update.message.reply_text("⚠️ 你没有权限使用此命令。")
+        return
+
+    if not users:
+        await update.message.reply_text("⚠️ 当前没有已保存的用户。")
+        return
+
+    msg = "*所有绑定的用户信息:*\n\n"
+    for uid, info in users.items():
+        username = info.get("username", "-")
+        time_str = info.get("time") if info.get("time") else "未设置"
+        msg += f"👤 用户ID: `{uid}`\n账号: `{username}`\n自动签到时间: {time_str}\n\n"
+
+    await update.message.reply_text(msg, parse_mode="Markdown")
+
 
 async def checkin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
@@ -186,9 +213,10 @@ async def checkin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     temp_msg = await update.message.reply_text("⏳ 签到请求已接收，正在处理...")
     temp_msg_id = temp_msg.message_id
-    asyncio.create_task(run_checkin(chat_id, temp_msg_id))
+    asyncio.create_task(run_checkin(chat_id, temp_msg_id, context.application))
 
-async def run_checkin(chat_id, temp_msg_id=None):
+async def run_checkin(chat_id, temp_msg_id=None, app=None):
+    bot = app.bot  # ✅ 使用传入的 bot 实例
     if chat_id not in user_locks:
         user_locks[chat_id] = asyncio.Lock()
 
@@ -237,7 +265,7 @@ async def settime(update: Update, context: ContextTypes.DEFAULT_TYPE):
         trigger="cron",
         hour=utc_hour,
         minute=minute,
-        args=[chat_id, None],
+        args=[chat_id, None, context.application],
         id=str(chat_id)
     )
 
@@ -278,7 +306,7 @@ async def history(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ---------------------- 主程序 ----------------------
 if __name__ == "__main__":
-    load_users()  # 加载本地数据
+    load_users()
 
     async def start_scheduler(app):
         scheduler.start()
@@ -295,13 +323,12 @@ if __name__ == "__main__":
                         trigger="cron",
                         hour=utc_hour,
                         minute=minute,
-                        args=[chat_id, None],
+                        args=[chat_id, None, app],
                         id=str(chat_id)
                     )
                     print(f"✅ 恢复用户 {chat_id} 的自动签到任务 ({hour:02d}:{minute:02d})")
 
     app = ApplicationBuilder().token(BOT_TOKEN).post_init(start_scheduler).build()
-    bot = app.bot
 
     # 添加命令
     app.add_handler(CommandHandler("start", start))
@@ -311,6 +338,7 @@ if __name__ == "__main__":
     app.add_handler(CommandHandler("checkin", checkin_command))
     app.add_handler(CommandHandler("settime", settime))
     app.add_handler(CommandHandler("history", history))
+    app.add_handler(CommandHandler("listall", listall))
 
     print("Bot已启动...")
     app.run_polling()
