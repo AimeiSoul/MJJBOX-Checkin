@@ -36,7 +36,7 @@
 1. 安装依赖：
 
    ```bash
-   pip install python-telegram-bot==20.0 apscheduler cloudscraper
+   pip install python-telegram-bot==20.0 apscheduler cloudscraper aiofiles
    ```
 
 2. 复制checkin.py中的内容到本地，或者git到本地
