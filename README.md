@@ -31,7 +31,7 @@
 
 ## 安装与运行
 
-> **如不想自己再安装，可使用[Aimei_Notify](https://t.me/AimeiNotify_bot)**。不保证服务的可用性。
+> **如不想自己再安装，可使用[Aimei_Notify](https://t.me/AimeiNotify_bot)**，~~不保证服务的可用性。~~
 
 1. 安装依赖：
 
